@@ -1,0 +1,13 @@
+{
+  "name": "ai-second-brain-template",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Scaffold a personal AI-agent second-brain vault from this template (Linux, macOS, Windows).",
+  "bin": {
+    "second-brain-setup": "bin/setup.js"
+  },
+  "engines": {
+    "node": ">=16"
+  },
+  "license": "MIT"
+}

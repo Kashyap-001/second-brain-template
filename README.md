@@ -48,9 +48,34 @@ templates/
 
 .mcp.json.example          MCP server config template (graphify) — copy to
                            .mcp.json and fill in real paths
+
+docs/
+  alias-modes.md           Pattern for wiring shell aliases (bash/zsh/
+                           PowerShell) to fixed skill+loop combos ("modes")
+
+bin/setup.js, package.json  `npx github:<owner>/<repo>` scaffolder — see
+                           "Quick setup" below
 ```
 
-## How to adopt this
+## Quick setup (recommended)
+
+Works the same on Linux, macOS, and Windows — it's a pure Node script, no
+dependencies, no npm publish required:
+
+```bash
+npx github:<owner>/<repo>
+```
+
+It prompts for your name, whether to keep the Odoo example skill pack, and
+whether to `git init` the result, then scaffolds a ready-to-use vault: copies
+the template, fills in `<YOUR_NAME>` / `<VAULT_ROOT>` placeholders, and turns
+the `*.example` memory/MCP files into real ones. See `bin/setup.js` for what
+it does — it's short and has no hidden steps.
+
+Prefer to do it by hand, or want to understand each piece? Follow the manual
+steps below instead.
+
+## How to adopt this (manual)
 
 1. **Clone this repo** as your own vault (Obsidian or plain folder — nothing
    here is Obsidian-specific except that markdown renders nicely in it).
@@ -78,7 +103,28 @@ templates/
    `.agents/scripts/link-brain.sh .` (pointing `VAULT_ROOT` at this repo if
    it's not adjacent). This symlinks `.agents/`, `.claude/commands/`,
    `.claude/agents/` into the project and generates a `CLAUDE.md` /
-   `.cursorrules` pointing back here.
+   `.cursorrules` pointing back here. It's a bash script — on Windows, run it
+   under WSL or Git Bash (everything else in this repo, including the
+   `npx` setup above, is platform-agnostic).
+8. **Set up shell shortcuts for common modes** (e.g. "domain dev with
+   teaching mode on" vs. "fast speed-dev" vs. "general brainstorming") — see
+   [`docs/alias-modes.md`](docs/alias-modes.md) for the pattern, with
+   examples for bash/zsh and PowerShell.
+
+## Platform notes
+
+| Piece | Linux | macOS | Windows |
+|---|---|---|---|
+| `npx github:<owner>/<repo>` setup | ✅ | ✅ | ✅ (needs Node + git) |
+| `.agents/scripts/link-brain.sh` | ✅ | ✅ | via WSL or Git Bash |
+| Alias/mode shortcuts | bash/zsh function | bash/zsh function | PowerShell function |
+| Everything else (skills, agent rules, docs) | plain markdown — no platform dependency | | |
+
+## Contributing
+
+Contributions are welcome — see [`CONTRIBUTING.md`](CONTRIBUTING.md) for the
+core-vs-example split this repo follows and, importantly, the no-personal-data
+rule for anything you submit.
 
 ## Architecture
 

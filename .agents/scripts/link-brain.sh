@@ -27,7 +27,7 @@ echo "Configuring .cursorrules in target..."
 cat << EOF > "$TARGET_ABS/.cursorrules"
 # Read instructions and style guidelines from this second brain vault.
 # Reference: $BRAIN_DIR/.agents/AGENTS.md
-# Reference: $BRAIN_DIR/Development/Odoo/Odoo-Mistakes.md (if you use the Odoo example pack)
+# Reference: your domain mistakes log, if you keep one (e.g. Development/<Domain>/<Domain>-Mistakes.md)
 
 You are an AI assistant working on this project. This project is linked to a
 second-brain vault at $BRAIN_DIR.
@@ -53,7 +53,7 @@ Before doing anything, read:
 
 When you fix a bug or learn something new this session, save it to the vault:
 - Domain-specific fixes → use the brain-sync skill (see .agents/skills/brain-sync)
-- General fixes → append to $BRAIN_DIR/Development/General-Mistakes.md
+- General fixes → append to your own General-Mistakes.md (create one if you don't have it yet)
 EOF
 echo "  Created CLAUDE.md"
 
