@@ -1,0 +1,18 @@
+# Personal, local-only Claude Code settings (real permissions, real paths)
+.claude/settings.local.json
+
+# Obsidian / AI plugin local state
+.obsidian/
+.smart-env/
+.agy/
+
+# Generated knowledge graph output (vault-specific, regenerate locally)
+graphify-out/
+
+# Real memory files — only the *.example templates are tracked
+.agents/claude-memory/*
+!.agents/claude-memory/*.example
+!.agents/claude-memory/README.md
+
+# OS cruft
+.DS_Store

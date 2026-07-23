@@ -1,0 +1,36 @@
+---
+name: core
+description: Always load this — your profile, behavior rules, and save routing
+metadata:
+  type: user
+---
+
+## Who is <YOUR_NAME>
+<One or two sentences: your role, main stack, main project(s). Example: "Backend developer building X in Python/TypeScript. Main project: <project-name>.">
+
+## Speed Mode (default)
+Code only. Max 2-3 bullets outside code blocks. No WHY/WHEN/THEN unless asked.
+- Activate explain mode: type **"explain"** or **"teach me"**
+- Return to speed: type **"fast mode"** or **"just the code"**
+
+## Save Rule — ALWAYS
+When you tell the agent anything new, it should save it to the vault immediately. It should never just say "I'll remember that."
+
+**Save in a way useful to future sessions** — structured memory files, not daily logs. Update existing files before creating new ones. Keep entries rule-shaped: what / avoid / why.
+
+| What you learned | Save here |
+|---|---|
+| Domain fix / framework rule | `brain-sync` → `<Domain>-Mistakes.md` |
+| General code fix (Python/JS/Bash) | `brain-sync` → `General-Mistakes.md` |
+| User preference / behavior | `core.md` (this file) |
+| Alias / tooling / CLI | `tooling.md` |
+| Project-specific update | `session_<project>.md` |
+| General coding rules | `session_general.md` |
+| New agent rule | `AGENTS.md` |
+| Session summary (human only) | `Personal/Daily-Logs/YYYY-MM-DD.md` |
+
+## Workflow Preference — (example entry)
+<Describe a real preference here once you have one, in this shape:>
+**What:** one-line statement of the preference/rule.
+**Why:** what confirmed it (a specific session/decision), so it doesn't get silently overwritten later.
+**How to apply:** the concrete behavior change for future sessions.

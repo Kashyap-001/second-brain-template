@@ -1,0 +1,30 @@
+# Claude Memory — Dispatch Table
+
+Read this first. It tells you exactly which file to load or write to — no need to read everything.
+
+## Load by session type
+
+| Session / Alias | Load these files |
+|---|---|
+| Any session | `core.md` |
+| `<your-project-alias>` | `core.md` + `tooling.md` + `session_<project>.md` |
+
+## Save by topic
+
+| What you learned | Write to |
+|---|---|
+| Domain fix / rule | `brain-sync` → `<Domain>-Mistakes.md` |
+| General code fix | `brain-sync` → `General-Mistakes.md` |
+| User preference / behavior | `core.md` |
+| Alias / CLI / tooling | `tooling.md` |
+| Project-specific update | `session_<project>.md` |
+| General coding rules | `session_general.md` |
+| New agent rule | `AGENTS.md` |
+| Session summary (human) | `Personal/Daily-Logs/YYYY-MM-DD.md` |
+
+## File index
+
+- [core.md](core.md) — your profile, speed mode, save rule + routing table
+- [tooling.md](tooling.md) — aliases, CLI gotchas, handoff workflow
+- `session_<project>.md` — one file per active project, created as needed
+- `feedback_*.md` — one file per recurring behavior-correction topic, created as needed

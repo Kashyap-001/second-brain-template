@@ -1,0 +1,30 @@
+---
+name: tooling
+description: All your CLI aliases, environment gotchas, and session handoff workflow
+metadata:
+  type: project
+---
+
+## Aliases
+<List your shell aliases/wrappers that launch an agent session with vault context loaded, e.g.:>
+
+| Alias | Skill(s) loaded | Loop | Use when |
+|---|---|---|---|
+| `<alias>` | `<skill-name>` | `<Nm>` babysitter/logger | `<when to use it>` |
+
+## Loops (auto-start on session launch)
+<Which aliases auto-start a `/loop` and what it calls each cycle.>
+
+## Skills (vault-local, loaded via --append-system-prompt)
+<List the vault skills each alias pulls in and what each does, one line per skill.>
+
+## CLI Gotchas (silent failures)
+<Record environment- or tool-specific footguns here as you hit them — the kind of
+thing that fails silently rather than with a clear error. One bullet per gotcha:
+what breaks, why, and the fix.>
+
+## Local environment topology
+<Record durable facts about this machine/environment that matter for correctness —
+database names, ports, service topology, credentials location (not the credentials
+themselves). Re-verify anything that could have drifted since it was written, rather
+than trusting it blindly.>
