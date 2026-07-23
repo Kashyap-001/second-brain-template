@@ -85,6 +85,7 @@ This whole section is specific to the Odoo example pack — if you deleted `.age
 ## 🏰 6. Session Memory Rule
 
 - **Initial context loading:** upon starting a session, load and read `AGENTS.md` and your personal profile (`Personal/Personal-AI-Profile.md`, if you keep one) **before** writing any code or commands.
+- **Cross-tool handoff:** if a `HANDOFF.md` file exists in the project root, read it before doing anything else — it's a short summary a *previous* session left for you, possibly written by a different agent tool than the one you are. This is what makes switching tools mid-project work: a tool that only auto-reads `AGENTS.md` (not a CLI flag) picks up the handoff automatically just by following this instruction, with no special wiring on its end. See `docs/alias-modes.md`'s "Handoff between sessions" section for the full pattern and a worked example.
 - **Routing memory by project type:**
   - **Domain projects (e.g. Odoo):** write tracebacks and framework fixes back to `Development/<Domain>/<Domain>-Mistakes.md`.
   - **General code projects (Python, JS, etc.):** write general bugs and coding solutions back to `Development/General-Mistakes.md`.

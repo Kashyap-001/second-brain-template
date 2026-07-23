@@ -166,7 +166,12 @@ function buildInvocation(shell, cliTool, customTemplate) {
 
 function bashAliasSnippet(vaultPath, cliTool, customTemplate) {
   const { ctxMode, line } = buildInvocation('bash', cliTool, customTemplate);
-  const gatherCtx = `\n  local ctx\n  ctx="$(cat "$vault/.agents/AGENTS.md" "$vault/.agents/claude-memory/core.md" "$vault/.agents/claude-memory/tooling.md" 2>/dev/null)"`;
+  const gatherCtx =
+    '\n  local ctx' +
+    '\n  ctx="$(cat "$vault/.agents/AGENTS.md" "$vault/.agents/claude-memory/core.md" "$vault/.agents/claude-memory/tooling.md" 2>/dev/null)"' +
+    '\n  if [ -f "$vault/HANDOFF.md" ]; then' +
+    '\n    ctx="$ctx\n\n## Handoff\n$(cat "$vault/HANDOFF.md")"' +
+    '\n  fi';
   const ctxBlock =
     ctxMode === 'file'
       ? `${gatherCtx}\n  local ctx_file\n  ctx_file="$(mktemp)"\n  printf '%s' "$ctx" > "$ctx_file"`
@@ -187,7 +192,11 @@ secondbrain() {
 function powershellAliasSnippet(vaultPath, cliTool, customTemplate) {
   const winPath = vaultPath.replace(/\//g, '\\');
   const { ctxMode, line } = buildInvocation('pwsh', cliTool, customTemplate);
-  const gatherCtx = `\n    $ctx = Get-Content "$vault\\.agents\\AGENTS.md", "$vault\\.agents\\claude-memory\\core.md", "$vault\\.agents\\claude-memory\\tooling.md" -Raw -ErrorAction SilentlyContinue -join "\`n"`;
+  const gatherCtx =
+    '\n    $ctx = Get-Content "$vault\\.agents\\AGENTS.md", "$vault\\.agents\\claude-memory\\core.md", "$vault\\.agents\\claude-memory\\tooling.md" -Raw -ErrorAction SilentlyContinue -join "`n"' +
+    '\n    if (Test-Path "$vault\\HANDOFF.md") {' +
+    '\n        $ctx = $ctx + "`n`n## Handoff`n" + (Get-Content "$vault\\HANDOFF.md" -Raw)' +
+    '\n    }';
   const ctxBlock =
     ctxMode === 'file'
       ? `${gatherCtx}\n    $ctxFile = New-TemporaryFile\n    Set-Content -Path $ctxFile -Value $ctx -NoNewline`

@@ -104,3 +104,30 @@ jobs:
           printf 'CI Test\nN\nN\nY\nagy\n' | node bin/setup.js "$RUNNER_TEMP/sb-alias-out-agy"
           grep -F 'cd "$vault" && agy' "$HOME/.bashrc"
           ! grep -q -- '--append-system-prompt' "$HOME/.bashrc"  # agy must not get claude's flag
+          # agy only auto-reads AGENTS.md, not HANDOFF.md — so the scaffolded
+          # AGENTS.md must carry an explicit instruction to check for one.
+          grep -qi 'HANDOFF.md' "$RUNNER_TEMP/sb-alias-out-agy/.agents/AGENTS.md"
+
+      # Cross-tool handoff: the claude alias must pick up HANDOFF.md when
+      # present and must NOT invent a "## Handoff" section when absent.
+      - name: Test HANDOFF.md pickup in claude alias (Linux/macOS)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          export HOME="$RUNNER_TEMP/sb-fake-home-handoff"
+          mkdir -p "$HOME"
+          OUT="$RUNNER_TEMP/sb-handoff-out"
+          printf 'CI Test\nN\nN\nY\nclaude\n' | node bin/setup.js "$OUT"
+
+          claude() {
+            if [ "$1" = "--append-system-prompt-file" ]; then
+              cat "$2"
+            fi
+          }
+          export -f claude
+          source "$HOME/.bashrc"
+
+          ! secondbrain | grep -q '## Handoff'
+          echo "Fixed the bug. Next: write tests." > "$OUT/HANDOFF.md"
+          secondbrain | grep -q '## Handoff'
+          secondbrain | grep -q 'Fixed the bug'

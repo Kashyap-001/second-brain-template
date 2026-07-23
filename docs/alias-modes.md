@@ -79,6 +79,12 @@ devmode() {
   ctx="$(cat "$vault/.agents/AGENTS.md" \
          "$vault/.agents/claude-memory/core.md" \
          "$vault/.agents/claude-memory/tooling.md" 2>/dev/null)"
+  if [ -f "$vault/HANDOFF.md" ]; then
+    ctx="$ctx
+
+## Handoff
+$(cat "$vault/HANDOFF.md")"
+  fi
   local ctx_file
   ctx_file="$(mktemp)"
   printf '%s' "$ctx" > "$ctx_file"
@@ -111,6 +117,9 @@ function devmode {
                         "$vault\.agents\claude-memory\core.md", `
                         "$vault\.agents\claude-memory\tooling.md" `
                         -Raw -ErrorAction SilentlyContinue -join "`n"
+    if (Test-Path "$vault\HANDOFF.md") {
+        $ctx = $ctx + "`n`n## Handoff`n" + (Get-Content "$vault\HANDOFF.md" -Raw)
+    }
     $ctxFile = New-TemporaryFile
     Set-Content -Path $ctxFile -Value $ctx -NoNewline
     claude --append-system-prompt-file $ctxFile @args
@@ -131,10 +140,43 @@ just use the bash version instead.
 If you also use a second agent/tool alongside Claude Code (any tool that can
 write a plain text file works), the pattern is:
 - End-of-session: one mode/alias writes a short `HANDOFF.md` (a few hundred
-  words: what changed, what's next, open questions).
+  words: what changed, what's next, open questions) to the vault root.
 - Start-of-session: the next mode/alias reads `HANDOFF.md` automatically if
   present, so context survives the gap between sessions without you
   re-explaining it.
 
 This is optional — `talkmode`-style aliases with no loop and no handoff are
 just as valid for casual use.
+
+### Worked example: switching between `agy` and `claude` on the same project
+
+This is the concrete case the pattern is built for — two different CLIs,
+same vault, same HANDOFF.md, and it works in **both directions** but for two
+different reasons:
+
+1. **You finish a session in `agy`.** Ask it to write a short summary to
+   `HANDOFF.md` in the vault root before you stop (a one-off request, or
+   wire it to a `/handoff`-style command in your own setup if `agy` supports
+   custom commands).
+2. **You switch to `claude` next.** The `secondbrain` alias (see the bash
+   example above, or what `bin/setup.js` generates for the `claude`
+   profile) explicitly checks for `HANDOFF.md` and appends it to the context
+   file it passes via `--append-system-prompt-file` — so Claude Code sees
+   agy's handoff note automatically, no extra step.
+3. **You switch back to `agy` later**, after a Claude Code session that also
+   wrote its own `HANDOFF.md`. This direction needs *no alias-side code at
+   all*: `agy` auto-reads `AGENTS.md` from the working directory, and
+   `AGENTS.md`'s "Cross-tool handoff" rule (section 6) tells it to check for
+   and read `HANDOFF.md` first — so it picks up the note as a natural
+   consequence of following its own instructions, not because anything was
+   injected into it programmatically.
+
+The asymmetry is the important thing to understand: **flag-driven CLIs
+(`claude`) need the alias to explicitly read `HANDOFF.md` into what it
+injects; CLIs that auto-read `AGENTS.md` (`agy`, and likely others as this
+becomes a more common convention) need the instruction to live in
+`AGENTS.md` itself instead.** Both are already wired up in this repo — the
+`claude` alias (both the doc example and what `setup.js` generates) checks
+`HANDOFF.md`, and `.agents/AGENTS.md` carries the cross-tool instruction. If
+you add a third CLI with its own convention, replicate whichever half
+actually applies to it.
