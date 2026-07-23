@@ -5,8 +5,8 @@ SAFe-style dev-loop agents (design → implement → verify → ship), reusable
 skills, hooks, and a persistent-memory system that routes learnings back into
 your vault instead of losing them at the end of a session.
 
-This repo is meant to be **adopted, not run as-is**. It's structure and
-prompts — no server, no build step.
+This repo is meant to be **adopted, not run as-is** — it's just structure
+and prompts, no server, no build step.
 
 ## What's in here
 
@@ -53,7 +53,7 @@ docs/
   alias-modes.md           Pattern for wiring shell aliases (bash/zsh/
                            PowerShell) to fixed skill+loop combos ("modes")
 
-bin/setup.js, package.json  `npx github:<owner>/<repo>` scaffolder — see
+bin/setup.js, package.json  `npx github:<your-github-username>/second-brain-template` scaffolder — see
                            "Quick setup" below
 ```
 
@@ -63,7 +63,7 @@ Works the same on Linux, macOS, and Windows — it's a pure Node script, no
 dependencies, no npm publish required:
 
 ```bash
-npx github:<owner>/<repo>
+npx github:<your-github-username>/second-brain-template
 ```
 
 It prompts for your name, whether to keep the Odoo example skill pack, and
@@ -115,7 +115,7 @@ steps below instead.
 
 | Piece | Linux | macOS | Windows |
 |---|---|---|---|
-| `npx github:<owner>/<repo>` setup | ✅ | ✅ | ✅ (needs Node + git) |
+| `npx github:<your-github-username>/second-brain-template` setup | ✅ | ✅ | ✅ (needs Node + git) |
 | `.agents/scripts/link-brain.sh` | ✅ | ✅ | via WSL or Git Bash |
 | Alias/mode shortcuts | bash/zsh function | bash/zsh function | PowerShell function |
 | Everything else (skills, agent rules, docs) | plain markdown — no platform dependency | | |
