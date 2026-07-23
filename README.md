@@ -53,7 +53,7 @@ docs/
   alias-modes.md           Pattern for wiring shell aliases (bash/zsh/
                            PowerShell) to fixed skill+loop combos ("modes")
 
-bin/setup.js, package.json  `npx github:<your-github-username>/second-brain-template` scaffolder — see
+bin/setup.js, package.json  `npx github:Kashyap-001/second-brain-template` scaffolder — see
                            "Quick setup" below
 ```
 
@@ -63,7 +63,7 @@ Works the same on Linux, macOS, and Windows — it's a pure Node script, no
 dependencies, no npm publish required:
 
 ```bash
-npx github:<your-github-username>/second-brain-template
+npx github:Kashyap-001/second-brain-template
 ```
 
 It prompts for your name, whether to keep the Odoo example skill pack, and
@@ -115,7 +115,7 @@ steps below instead.
 
 | Piece | Linux | macOS | Windows |
 |---|---|---|---|
-| `npx github:<your-github-username>/second-brain-template` setup | ✅ | ✅ | ✅ (needs Node + git) |
+| `npx github:Kashyap-001/second-brain-template` setup | ✅ | ✅ | ✅ (needs Node + git) |
 | `.agents/scripts/link-brain.sh` | ✅ | ✅ | via WSL or Git Bash |
 | Alias/mode shortcuts | bash/zsh function | bash/zsh function | PowerShell function |
 | Everything else (skills, agent rules, docs) | plain markdown — no platform dependency | | |
