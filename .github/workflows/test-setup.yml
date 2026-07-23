@@ -57,11 +57,40 @@ jobs:
           printf 'CI Test\nN\nN\nY\nclaude\n' | node bin/setup.js "$RUNNER_TEMP/sb-alias-out-1"
           test -f "$HOME/.bashrc"
           grep -q "ai-second-brain-template: secondbrain mode alias" "$HOME/.bashrc"
-          grep -q -- '--append-system-prompt' "$HOME/.bashrc"
+          # must use the -file flag + mktemp, NOT the inline-arg form (avoids
+          # ARG_MAX once memory files grow — see docs/alias-modes.md)
+          grep -q -- '--append-system-prompt-file' "$HOME/.bashrc"
+          grep -q 'mktemp' "$HOME/.bashrc"
+          grep -q 'rm -f "\$ctx_file"' "$HOME/.bashrc"
           # second run must not duplicate the block
           printf 'CI Test\nN\nN\nY\nclaude\n' | node bin/setup.js "$RUNNER_TEMP/sb-alias-out-2"
           count=$(grep -c "ai-second-brain-template: secondbrain mode alias" "$HOME/.bashrc")
           test "$count" -eq 2  # one block = one start marker + one end marker
+
+      # Prove the -file fix actually survives context far past argv limits
+      # (this system's ARG_MAX; ~8191 chars on Windows cmd.exe) — the inline
+      # form this replaced would hard-fail here with E2BIG. Runs the REAL
+      # generated function (sourced from .bashrc), stubbing only `claude`
+      # itself so no real CLI call is needed.
+      - name: Stress test claude alias with context exceeding ARG_MAX (Linux/macOS)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          export HOME="$RUNNER_TEMP/sb-fake-home-stress"
+          mkdir -p "$HOME"
+          OUT="$RUNNER_TEMP/sb-stress-out"
+          printf 'CI Test\nN\nN\nY\nclaude\n' | node bin/setup.js "$OUT"
+          python3 -c "print('x' * 5_000_000)" >> "$OUT/.agents/AGENTS.md"
+
+          claude() {
+            if [ "$1" = "--append-system-prompt-file" ]; then
+              wc -c < "$2"
+            fi
+          }
+          export -f claude
+          source "$HOME/.bashrc"
+          size=$(secondbrain | tail -1)
+          test "$size" -gt 5000000
 
       # agy (Antigravity) has no --append-system-prompt equivalent — it
       # auto-reads AGENTS.md from the working directory, so its alias must

@@ -96,29 +96,42 @@ function promoteExamples(destDir) {
 // Different CLIs load context in genuinely different ways — this isn't
 // just "swap the binary name". Verified conventions (see docs/alias-modes.md
 // for sources):
-//   claude — flag-based: `claude --append-system-prompt "<text>"`.
+//   claude — flag-based, but via a FILE, not an inline argument:
+//     `claude --append-system-prompt-file "<path>"`. Memory files grow over
+//     months of use; passing the concatenated content as an inline argv
+//     string risks hitting the shell's ARG_MAX (or ~8191 chars on Windows
+//     cmd.exe) once they get large. Writing to a temp file first and
+//     passing its path sidesteps the limit entirely — this is the same fix
+//     applied to this project's own real ~/.bashrc aliases after hitting
+//     that exact wall.
 //   agy (Antigravity) — no such flag; it auto-reads AGENTS.md from the
 //     current working directory, so the alias just needs to cd into the
-//     vault (which has AGENTS.md at its root) before launching it.
+//     vault (which has AGENTS.md at its root) before launching it. No
+//     ARG_MAX exposure either way since nothing goes through argv.
 // Anything else: we don't have a verified convention, so we ask the user
 // for their own invocation template rather than guess a flag that might
-// not exist on their tool.
+// not exist on their tool. It supports both {ctx} (inline — fine for small
+// context, risky once it grows) and {ctx_file} (a path to the same content
+// on disk — the safe choice for anything that accepts a file).
 const CLI_PROFILES = {
-  claude: { kind: 'flag', flag: '--append-system-prompt' },
+  claude: { kind: 'flag-file', flag: '--append-system-prompt-file' },
   agy: { kind: 'cwd-autoread' },
 };
 
+// ctxMode is 'none' | 'inline' | 'file' — tells the snippet builder whether
+// it needs to gather $ctx, additionally write it to a temp file, or neither.
 function buildInvocation(shell, cliTool, customTemplate) {
   const profile = CLI_PROFILES[cliTool.toLowerCase()];
-  const ctxVar = shell === 'bash' ? '"$ctx"' : '$ctx';
+  const inlineVar = shell === 'bash' ? '"$ctx"' : '$ctx';
+  const fileVar = shell === 'bash' ? '"$ctx_file"' : '$ctxFile';
   const argsVar = shell === 'bash' ? '"$@"' : '@args';
 
-  if (profile && profile.kind === 'flag') {
-    return { needsCtx: true, line: `${cliTool} ${profile.flag} ${ctxVar} ${argsVar}` };
+  if (profile && profile.kind === 'flag-file') {
+    return { ctxMode: 'file', line: `${cliTool} ${profile.flag} ${fileVar} ${argsVar}` };
   }
   if (profile && profile.kind === 'cwd-autoread') {
     return {
-      needsCtx: false,
+      ctxMode: 'none',
       line:
         shell === 'bash'
           ? `(cd "$vault" && ${cliTool} ${argsVar})  # ${cliTool} auto-reads AGENTS.md from the working directory`
@@ -126,14 +139,24 @@ function buildInvocation(shell, cliTool, customTemplate) {
     };
   }
   if (customTemplate) {
-    return { needsCtx: true, line: `${customTemplate.split('{ctx}').join(ctxVar)} ${argsVar}` };
+    let line = customTemplate;
+    let ctxMode = 'none';
+    if (line.includes('{ctx_file}')) {
+      line = line.split('{ctx_file}').join(fileVar);
+      ctxMode = 'file';
+    }
+    if (line.includes('{ctx}')) {
+      line = line.split('{ctx}').join(inlineVar);
+      ctxMode = ctxMode === 'file' ? 'file' : 'inline';
+    }
+    return { ctxMode, line: `${line} ${argsVar}` };
   }
   // No verified profile and no custom template supplied: fall back to the
   // same cd-and-run shape agy uses, since reading AGENTS.md from cwd is an
   // emerging convention several newer agent CLIs share. Not guaranteed
   // correct for every tool — the printed setup output says so.
   return {
-    needsCtx: false,
+    ctxMode: 'none',
     line:
       shell === 'bash'
         ? `(cd "$vault" && ${cliTool} ${argsVar})  # best-effort: adjust for ${cliTool}'s real context-loading convention`
@@ -142,15 +165,20 @@ function buildInvocation(shell, cliTool, customTemplate) {
 }
 
 function bashAliasSnippet(vaultPath, cliTool, customTemplate) {
-  const { needsCtx, line } = buildInvocation('bash', cliTool, customTemplate);
-  const ctxBlock = needsCtx
-    ? `\n  local ctx\n  ctx="$(cat "$vault/.agents/AGENTS.md" "$vault/.agents/claude-memory/core.md" "$vault/.agents/claude-memory/tooling.md" 2>/dev/null)"`
-    : '';
+  const { ctxMode, line } = buildInvocation('bash', cliTool, customTemplate);
+  const gatherCtx = `\n  local ctx\n  ctx="$(cat "$vault/.agents/AGENTS.md" "$vault/.agents/claude-memory/core.md" "$vault/.agents/claude-memory/tooling.md" 2>/dev/null)"`;
+  const ctxBlock =
+    ctxMode === 'file'
+      ? `${gatherCtx}\n  local ctx_file\n  ctx_file="$(mktemp)"\n  printf '%s' "$ctx" > "$ctx_file"`
+      : ctxMode === 'inline'
+        ? gatherCtx
+        : '';
+  const cleanup = ctxMode === 'file' ? '\n  rm -f "$ctx_file"' : '';
   return `
 # --- ${ALIAS_MARKER} (auto-added) ---
 secondbrain() {
   local vault="${vaultPath}"${ctxBlock}
-  ${line}
+  ${line}${cleanup}
 }
 # --- end ${ALIAS_MARKER} ---
 `;
@@ -158,15 +186,20 @@ secondbrain() {
 
 function powershellAliasSnippet(vaultPath, cliTool, customTemplate) {
   const winPath = vaultPath.replace(/\//g, '\\');
-  const { needsCtx, line } = buildInvocation('pwsh', cliTool, customTemplate);
-  const ctxBlock = needsCtx
-    ? `\n    $ctx = Get-Content "$vault\\.agents\\AGENTS.md", "$vault\\.agents\\claude-memory\\core.md", "$vault\\.agents\\claude-memory\\tooling.md" -Raw -ErrorAction SilentlyContinue -join "\`n"`
-    : '';
+  const { ctxMode, line } = buildInvocation('pwsh', cliTool, customTemplate);
+  const gatherCtx = `\n    $ctx = Get-Content "$vault\\.agents\\AGENTS.md", "$vault\\.agents\\claude-memory\\core.md", "$vault\\.agents\\claude-memory\\tooling.md" -Raw -ErrorAction SilentlyContinue -join "\`n"`;
+  const ctxBlock =
+    ctxMode === 'file'
+      ? `${gatherCtx}\n    $ctxFile = New-TemporaryFile\n    Set-Content -Path $ctxFile -Value $ctx -NoNewline`
+      : ctxMode === 'inline'
+        ? gatherCtx
+        : '';
+  const cleanup = ctxMode === 'file' ? '\n    Remove-Item $ctxFile -ErrorAction SilentlyContinue' : '';
   return `
 # --- ${ALIAS_MARKER} (auto-added) ---
 function secondbrain {
     $vault = "${winPath}"${ctxBlock}
-    ${line}
+    ${line}${cleanup}
 }
 # --- end ${ALIAS_MARKER} ---
 `;
@@ -238,8 +271,9 @@ async function main() {
     if (!CLI_PROFILES[cliTool.trim().toLowerCase()]) {
       customTemplate = await ask(
         `No verified context-loading convention for "${cliTool}" — enter the command ` +
-          'to run, using {ctx} where loaded context should go (blank = just cd into ' +
-          'the vault and run it plainly)',
+          'to run: use {ctx_file} if it accepts a file path (safer once memory files ' +
+          'grow — avoids shell arg-length limits), {ctx} if it needs the text inline, ' +
+          'or leave blank to just cd into the vault and run it plainly',
         ''
       );
     }

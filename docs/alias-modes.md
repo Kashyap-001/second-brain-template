@@ -1,7 +1,7 @@
 # Alias "modes" — wiring shell shortcuts to skill loadouts
 
 A second brain is more useful when starting a session doesn't mean typing the
-same long `claude --append-system-prompt "$(cat ...)"` invocation every time.
+same long `claude --append-system-prompt-file <path>` invocation every time.
 The pattern here: define one shell alias/function per **mode**, where a mode
 is a fixed combination of *which skills load*, *which loop runs*, and *what
 you're using it for*. Give each mode a short name and never think about the
@@ -26,17 +26,32 @@ way Claude Code does. Verified conventions, as of mid-2026:
 
 | CLI | How it loads context | Alias shape |
 |---|---|---|
-| `claude` (Claude Code) | Flag: `claude --append-system-prompt "<text>"` | Concatenate files into a variable, pass via the flag |
+| `claude` (Claude Code) | Flag, **via a file**: `claude --append-system-prompt-file <path>` | Concatenate files into a variable, write it to a temp file, pass the path |
 | `agy` (Antigravity) | Auto-reads `AGENTS.md` from the **current working directory** — no flag at all (same mechanism it used for `GEMINI.md` before) | `cd` into the vault, then run `agy` plainly |
 | Cursor CLI (`cursor-agent`) | Reads project rules via `/rules` / a rules file, not a CLI flag | No direct equivalent — set up `.cursorrules` (via `link-brain.sh`) instead of a shell alias |
 | Aider | `--message` / `--message-file` drive a one-shot task prompt, not a persistent system-prompt append | Different mental model entirely — see Aider's own docs |
 
 `bin/setup.js` knows the first two conventions and builds the right shape
-automatically. For anything else, it asks you for the exact command
-(`{ctx}` as the placeholder for loaded context, or blank to fall back to the
-cd-and-run shape several newer CLIs share) rather than guessing a flag that
-might not exist — check the tool's own docs before assuming a flag-based
+automatically. For anything else, it asks you for the exact command —
+`{ctx_file}` as a placeholder for a path to the loaded context (use this if
+the tool accepts a file), `{ctx}` for the text inline, or blank to fall back
+to the cd-and-run shape several newer CLIs share — rather than guessing a
+flag that might not exist. Check the tool's own docs before assuming any
 convention will work.
+
+### Why a file, not an inline argument
+
+Concatenating `AGENTS.md` + memory files into a single string and passing it
+as a CLI argument works fine at first — until those memory files accumulate
+months of entries and the combined string blows past the shell's `ARG_MAX`
+(a few MB on Linux/macOS, but as little as ~8191 characters on Windows
+`cmd.exe`). Past that limit the command fails outright with `E2BIG`. Writing
+the same content to a temp file and passing *its path* instead sidesteps the
+limit completely, since the file's contents never go through argv. This is
+the fix that was actually needed in practice, not a hypothetical — apply the
+same idea to any custom `{ctx}`-based template you write if your tool's
+argument size ever becomes a problem; swap it for `{ctx_file}` if the tool
+accepts one.
 
 ## Example mode table
 
@@ -64,15 +79,26 @@ devmode() {
   ctx="$(cat "$vault/.agents/AGENTS.md" \
          "$vault/.agents/claude-memory/core.md" \
          "$vault/.agents/claude-memory/tooling.md" 2>/dev/null)"
-  claude --append-system-prompt "$ctx" "$@"
+  local ctx_file
+  ctx_file="$(mktemp)"
+  printf '%s' "$ctx" > "$ctx_file"
+  claude --append-system-prompt-file "$ctx_file" "$@"
+  rm -f "$ctx_file"
 }
 ```
 
 Repeat per mode, changing which files get concatenated into `$ctx` and which
 `/loop` command you run after Claude starts. See the CLI gotcha list in
-`.agents/claude-memory/tooling.md.example` — **`--append-system-prompt` must
-be a flag, not a positional argument**, or your context silently becomes just
-a chat message instead of loaded instructions.
+`.agents/claude-memory/tooling.md.example` for two things that bite silently:
+- **`--append-system-prompt-file` must be a flag, not a positional
+  argument**, or your context becomes just a chat message instead of loaded
+  instructions.
+- **Use the `-file` variant, not the inline `--append-system-prompt "$ctx"`
+  form.** The inline form passes your whole context string as a single argv
+  entry, which works fine while memory files are small — then silently stops
+  working (or hard-fails with `E2BIG`) once they grow past the shell's
+  `ARG_MAX`. Writing to a temp file first and passing its path avoids the
+  limit entirely; `bin/setup.js` does this automatically.
 
 ## Wiring it up — Windows (PowerShell)
 
@@ -85,9 +111,17 @@ function devmode {
                         "$vault\.agents\claude-memory\core.md", `
                         "$vault\.agents\claude-memory\tooling.md" `
                         -Raw -ErrorAction SilentlyContinue -join "`n"
-    claude --append-system-prompt $ctx @args
+    $ctxFile = New-TemporaryFile
+    Set-Content -Path $ctxFile -Value $ctx -NoNewline
+    claude --append-system-prompt-file $ctxFile @args
+    Remove-Item $ctxFile -ErrorAction SilentlyContinue
 }
 ```
+
+Same reasoning as the bash version: Windows `cmd.exe` caps a command line at
+around 8191 characters, and even PowerShell has practical limits — writing
+to a temp file and passing its path avoids the issue rather than hitting it
+later once memory files grow.
 
 Same idea — one PowerShell function per mode. Works natively; WSL users can
 just use the bash version instead.
