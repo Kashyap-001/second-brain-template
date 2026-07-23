@@ -1,0 +1,46 @@
+name: test-setup
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  smoke-test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Syntax check
+        run: node -c bin/setup.js
+
+      - name: Run setup.js non-interactively (Linux/macOS)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          OUT="$RUNNER_TEMP/sb-ci-out"
+          printf 'CI Test\nN\nY\n' | node bin/setup.js "$OUT"
+          test -f "$OUT/README.md"
+          test -d "$OUT/.git"
+          test ! -d "$OUT/.agents/skills/examples/odoo"
+          grep -q "CI Test" "$OUT/.agents/claude-memory/core.md"
+          test -f "$OUT/.mcp.json"
+
+      - name: Run setup.js non-interactively (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $out = Join-Path $env:RUNNER_TEMP "sb-ci-out"
+          "CI Test`nN`nY" | node bin/setup.js $out
+          if (!(Test-Path "$out\README.md")) { throw "README.md missing" }
+          if (!(Test-Path "$out\.git")) { throw ".git missing" }
+          if (Test-Path "$out\.agents\skills\examples\odoo") { throw "odoo example pack was not removed" }
+          if (!(Select-String -Path "$out\.agents\claude-memory\core.md" -Pattern "CI Test" -Quiet)) { throw "name placeholder not filled in" }
+          if (!(Test-Path "$out\.mcp.json")) { throw ".mcp.json not created from example" }
