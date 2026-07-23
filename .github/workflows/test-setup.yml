@@ -48,16 +48,30 @@ jobs:
       # Alias installer touches files outside the scaffolded vault
       # (~/.bashrc or PowerShell $PROFILE), so it's tested here with HOME
       # sandboxed to a scratch dir — never the runner's real shell config.
-      - name: Test shell-alias installer + idempotency (Linux/macOS, sandboxed HOME)
+      - name: Test shell-alias installer + idempotency, claude profile (Linux/macOS, sandboxed HOME)
         if: runner.os != 'Windows'
         shell: bash
         run: |
           export HOME="$RUNNER_TEMP/sb-fake-home"
           mkdir -p "$HOME"
-          printf 'CI Test\nN\nN\nY\n' | node bin/setup.js "$RUNNER_TEMP/sb-alias-out-1"
+          printf 'CI Test\nN\nN\nY\nclaude\n' | node bin/setup.js "$RUNNER_TEMP/sb-alias-out-1"
           test -f "$HOME/.bashrc"
           grep -q "ai-second-brain-template: secondbrain mode alias" "$HOME/.bashrc"
+          grep -q -- '--append-system-prompt' "$HOME/.bashrc"
           # second run must not duplicate the block
-          printf 'CI Test\nN\nN\nY\n' | node bin/setup.js "$RUNNER_TEMP/sb-alias-out-2"
+          printf 'CI Test\nN\nN\nY\nclaude\n' | node bin/setup.js "$RUNNER_TEMP/sb-alias-out-2"
           count=$(grep -c "ai-second-brain-template: secondbrain mode alias" "$HOME/.bashrc")
           test "$count" -eq 2  # one block = one start marker + one end marker
+
+      # agy (Antigravity) has no --append-system-prompt equivalent — it
+      # auto-reads AGENTS.md from the working directory, so its alias must
+      # take the cd-and-run shape, not the flag-based one claude gets.
+      - name: Test shell-alias installer, agy profile (Linux/macOS, sandboxed HOME)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          export HOME="$RUNNER_TEMP/sb-fake-home-agy"
+          mkdir -p "$HOME"
+          printf 'CI Test\nN\nN\nY\nagy\n' | node bin/setup.js "$RUNNER_TEMP/sb-alias-out-agy"
+          grep -F 'cd "$vault" && agy' "$HOME/.bashrc"
+          ! grep -q -- '--append-system-prompt' "$HOME/.bashrc"  # agy must not get claude's flag

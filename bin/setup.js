@@ -93,27 +93,80 @@ function promoteExamples(destDir) {
   }
 }
 
-function bashAliasSnippet(vaultPath) {
+// Different CLIs load context in genuinely different ways — this isn't
+// just "swap the binary name". Verified conventions (see docs/alias-modes.md
+// for sources):
+//   claude — flag-based: `claude --append-system-prompt "<text>"`.
+//   agy (Antigravity) — no such flag; it auto-reads AGENTS.md from the
+//     current working directory, so the alias just needs to cd into the
+//     vault (which has AGENTS.md at its root) before launching it.
+// Anything else: we don't have a verified convention, so we ask the user
+// for their own invocation template rather than guess a flag that might
+// not exist on their tool.
+const CLI_PROFILES = {
+  claude: { kind: 'flag', flag: '--append-system-prompt' },
+  agy: { kind: 'cwd-autoread' },
+};
+
+function buildInvocation(shell, cliTool, customTemplate) {
+  const profile = CLI_PROFILES[cliTool.toLowerCase()];
+  const ctxVar = shell === 'bash' ? '"$ctx"' : '$ctx';
+  const argsVar = shell === 'bash' ? '"$@"' : '@args';
+
+  if (profile && profile.kind === 'flag') {
+    return { needsCtx: true, line: `${cliTool} ${profile.flag} ${ctxVar} ${argsVar}` };
+  }
+  if (profile && profile.kind === 'cwd-autoread') {
+    return {
+      needsCtx: false,
+      line:
+        shell === 'bash'
+          ? `(cd "$vault" && ${cliTool} ${argsVar})  # ${cliTool} auto-reads AGENTS.md from the working directory`
+          : `Set-Location $vault; ${cliTool} ${argsVar}  # ${cliTool} auto-reads AGENTS.md from the working directory`,
+    };
+  }
+  if (customTemplate) {
+    return { needsCtx: true, line: `${customTemplate.split('{ctx}').join(ctxVar)} ${argsVar}` };
+  }
+  // No verified profile and no custom template supplied: fall back to the
+  // same cd-and-run shape agy uses, since reading AGENTS.md from cwd is an
+  // emerging convention several newer agent CLIs share. Not guaranteed
+  // correct for every tool — the printed setup output says so.
+  return {
+    needsCtx: false,
+    line:
+      shell === 'bash'
+        ? `(cd "$vault" && ${cliTool} ${argsVar})  # best-effort: adjust for ${cliTool}'s real context-loading convention`
+        : `Set-Location $vault; ${cliTool} ${argsVar}  # best-effort: adjust for ${cliTool}'s real context-loading convention`,
+  };
+}
+
+function bashAliasSnippet(vaultPath, cliTool, customTemplate) {
+  const { needsCtx, line } = buildInvocation('bash', cliTool, customTemplate);
+  const ctxBlock = needsCtx
+    ? `\n  local ctx\n  ctx="$(cat "$vault/.agents/AGENTS.md" "$vault/.agents/claude-memory/core.md" "$vault/.agents/claude-memory/tooling.md" 2>/dev/null)"`
+    : '';
   return `
 # --- ${ALIAS_MARKER} (auto-added) ---
 secondbrain() {
-  local vault="${vaultPath}"
-  local ctx
-  ctx="$(cat "$vault/.agents/AGENTS.md" "$vault/.agents/claude-memory/core.md" "$vault/.agents/claude-memory/tooling.md" 2>/dev/null)"
-  claude --append-system-prompt "$ctx" "$@"
+  local vault="${vaultPath}"${ctxBlock}
+  ${line}
 }
 # --- end ${ALIAS_MARKER} ---
 `;
 }
 
-function powershellAliasSnippet(vaultPath) {
+function powershellAliasSnippet(vaultPath, cliTool, customTemplate) {
   const winPath = vaultPath.replace(/\//g, '\\');
+  const { needsCtx, line } = buildInvocation('pwsh', cliTool, customTemplate);
+  const ctxBlock = needsCtx
+    ? `\n    $ctx = Get-Content "$vault\\.agents\\AGENTS.md", "$vault\\.agents\\claude-memory\\core.md", "$vault\\.agents\\claude-memory\\tooling.md" -Raw -ErrorAction SilentlyContinue -join "\`n"`
+    : '';
   return `
 # --- ${ALIAS_MARKER} (auto-added) ---
 function secondbrain {
-    $vault = "${winPath}"
-    $ctx = Get-Content "$vault\\.agents\\AGENTS.md", "$vault\\.agents\\claude-memory\\core.md", "$vault\\.agents\\claude-memory\\tooling.md" -Raw -ErrorAction SilentlyContinue -join "\`n"
-    claude --append-system-prompt $ctx @args
+    $vault = "${winPath}"${ctxBlock}
+    ${line}
 }
 # --- end ${ALIAS_MARKER} ---
 `;
@@ -134,12 +187,14 @@ function resolvePowerShellProfile() {
 // config (~/.bashrc, ~/.zshrc, or PowerShell $PROFILE). Idempotent — skips
 // if a previous run already added it. This is the one step setup.js takes
 // outside the scaffolded vault directory, so it's opt-in and never silent.
-function installShellAlias(vaultPath) {
+function installShellAlias(vaultPath, cliTool, customTemplate) {
   const isWindows = process.platform === 'win32';
   const targetFile = isWindows
     ? resolvePowerShellProfile()
     : path.join(os.homedir(), /zsh/i.test(process.env.SHELL || '') ? '.zshrc' : '.bashrc');
-  const snippet = isWindows ? powershellAliasSnippet(vaultPath) : bashAliasSnippet(vaultPath);
+  const snippet = isWindows
+    ? powershellAliasSnippet(vaultPath, cliTool, customTemplate)
+    : bashAliasSnippet(vaultPath, cliTool, customTemplate);
 
   const existing = fs.existsSync(targetFile) ? fs.readFileSync(targetFile, 'utf8') : '';
   if (existing.includes(ALIAS_MARKER)) {
@@ -176,6 +231,19 @@ async function main() {
     'Add a starter "secondbrain" shell alias to your shell config now? (y/N)',
     'N'
   );
+  let cliTool = 'claude';
+  let customTemplate = '';
+  if (/^y/i.test(addAlias)) {
+    cliTool = await ask('Which CLI should the alias launch? (claude/agy/other)', 'claude');
+    if (!CLI_PROFILES[cliTool.trim().toLowerCase()]) {
+      customTemplate = await ask(
+        `No verified context-loading convention for "${cliTool}" — enter the command ` +
+          'to run, using {ctx} where loaded context should go (blank = just cd into ' +
+          'the vault and run it plainly)',
+        ''
+      );
+    }
+  }
   rl.close();
 
   console.log(`\nCopying template into ${targetDir} ...`);
@@ -213,11 +281,17 @@ async function main() {
      function on Windows) for the modes you want.`;
   if (/^y/i.test(addAlias)) {
     try {
-      const { targetFile, status } = installShellAlias(targetDir);
+      const { targetFile, status } = installShellAlias(targetDir, cliTool.trim(), customTemplate.trim());
+      const unverified = !CLI_PROFILES[cliTool.trim().toLowerCase()] && !customTemplate.trim();
+      const caveat = unverified
+        ? `\n     "${cliTool}" has no verified context-loading convention — the generated
+     function just cds into the vault and runs it plainly. Check ${cliTool}'s own
+     docs and adjust the function in ${targetFile} if it needs a specific flag.`
+        : '';
       aliasNote =
         status === 'added'
-          ? `  2. Added a "secondbrain" alias to ${targetFile} — restart your shell
-     (or \`source ${targetFile}\` / reopen PowerShell) then run \`secondbrain\`.
+          ? `  2. Added a "secondbrain" alias (${cliTool}) to ${targetFile} — restart your
+     shell (or \`source ${targetFile}\` / reopen PowerShell) then run \`secondbrain\`.${caveat}
      Add more modes by copying/editing that function — see docs/alias-modes.md.`
           : `  2. ${targetFile} already has a secondbrain alias from a previous run —
      left it alone. See docs/alias-modes.md to add more modes.`;

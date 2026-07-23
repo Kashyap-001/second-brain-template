@@ -13,11 +13,30 @@ fit your own work, using the table below as a template.
 **Fastest start:** `bin/setup.js` (the `npx` scaffolder — see the root
 README) can add a single starter `secondbrain` function to your shell config
 for you (`~/.bashrc`/`~/.zshrc` on Linux/macOS, your PowerShell `$PROFILE` on
-Windows) — just answer "y" to its last prompt. It's idempotent (safe to run
-setup again, it won't duplicate the block) and it's the *only* thing the
-scaffolder touches outside the vault directory, opt-in every time. Rename
-that one function and duplicate it per mode using the table below as your
-guide.
+Windows) — just answer "y" to its last prompt, then say which CLI you use.
+It's idempotent (safe to run setup again, it won't duplicate the block) and
+it's the *only* thing the scaffolder touches outside the vault directory,
+opt-in every time. Rename that one function and duplicate it per mode using
+the table below as your guide.
+
+### Different CLIs load context differently — this isn't just a binary name swap
+
+Don't assume every agent CLI takes a `--append-system-prompt`-style flag the
+way Claude Code does. Verified conventions, as of mid-2026:
+
+| CLI | How it loads context | Alias shape |
+|---|---|---|
+| `claude` (Claude Code) | Flag: `claude --append-system-prompt "<text>"` | Concatenate files into a variable, pass via the flag |
+| `agy` (Antigravity) | Auto-reads `AGENTS.md` from the **current working directory** — no flag at all (same mechanism it used for `GEMINI.md` before) | `cd` into the vault, then run `agy` plainly |
+| Cursor CLI (`cursor-agent`) | Reads project rules via `/rules` / a rules file, not a CLI flag | No direct equivalent — set up `.cursorrules` (via `link-brain.sh`) instead of a shell alias |
+| Aider | `--message` / `--message-file` drive a one-shot task prompt, not a persistent system-prompt append | Different mental model entirely — see Aider's own docs |
+
+`bin/setup.js` knows the first two conventions and builds the right shape
+automatically. For anything else, it asks you for the exact command
+(`{ctx}` as the placeholder for loaded context, or blank to fall back to the
+cd-and-run shape several newer CLIs share) rather than guessing a flag that
+might not exist — check the tool's own docs before assuming a flag-based
+convention will work.
 
 ## Example mode table
 
