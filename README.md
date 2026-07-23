@@ -8,6 +8,56 @@ your vault instead of losing them at the end of a session.
 This repo is meant to be **adopted, not run as-is** — it's just structure
 and prompts, no server, no build step.
 
+## Features
+
+- **Global agent behavior rules** (`.agents/AGENTS.md`) — read-only
+  constraints for directories an agent must never touch, an automated
+  self-healing loop (error → fix → log → retry, with a repeated-error guard
+  so it doesn't spin forever), a memory-routing table so learnings get saved
+  to the right file instead of lost at session end, and token-preservation
+  tactics for long sessions.
+- **SAFe-style dev-loop agents + slash commands** (`.claude/agents/`,
+  `.claude/commands/`) — `be-developer` (implementation), `qas` (independent
+  AC/DoD gate owner), `rte` (PR/CI/merge), `system-architect` (design
+  review), wired to `/start-work`, `/quick-fix`, `/pre-pr`, `/end-work`,
+  `/retro`, `/search-pattern`.
+- **Reusable skill library** (`.agents/skills/`) — brain-sync, vault-pruner,
+  safe-workflow, security-audit, testing-patterns, systematic-debugging,
+  obsidian-vault, spec-creation, session-wrap, git-advanced, frontend-design,
+  feature-guardian, feature-restorer, find-skills. All domain-agnostic.
+- **Optional domain example pack** (`.agents/skills/examples/odoo/`) — a
+  full worked example of what a domain-specific skill pack looks like
+  (Odoo 18/19 skills, version-isolation rules, reference guides). Delete it
+  if you don't need it, or use it as the template for your own domain.
+- **Persistent cross-session memory** (`.agents/claude-memory/*.example`) —
+  frontmatter-tagged files (`core.md`, `tooling.md`, `MEMORY.md`) that get
+  loaded into agent context every session, so preferences, fixes, and
+  project notes survive between sessions instead of being re-explained.
+- **Alias "mode" system** (`docs/alias-modes.md`) — the pattern for wiring a
+  short shell command (`devmode`, `speedmode`, …) to a fixed skill loadout +
+  loop cadence, so starting a session with the right context loaded is one
+  word instead of a long CLI invocation. Examples for bash/zsh and
+  PowerShell. `bin/setup.js` can install a starter one for you.
+- **Cross-platform `npx` setup** (`bin/setup.js`) — `npx github:<owner>/<repo>`
+  scaffolds a ready-to-use vault with no install step: fills in name/path
+  placeholders, promotes `*.example` memory/MCP files to real ones, offers
+  to drop the Odoo example pack, offers to `git init`, and — opt-in — can
+  add a starter shell alias to your shell config. Pure Node stdlib, no
+  dependencies, works identically on Linux, macOS, and Windows.
+- **Optional graphify integration** (`.claude/skills/graphify/`,
+  `.claude/settings.json` hooks) — codebase knowledge-graph queries
+  (`graphify query`, `graphify path`, `graphify explain`) instead of raw
+  grepping, if you install graphify separately. Fully optional; remove the
+  hooks if you don't use it.
+- **CI smoke tests** (`.github/workflows/test-setup.yml`) — every push/PR
+  runs `bin/setup.js` non-interactively on Linux, macOS, and Windows and
+  asserts the scaffolded output is correct, including the shell-alias
+  installer (tested against a sandboxed `HOME`, never the runner's real
+  shell config).
+- **Sanitized and MIT-licensed** — built by stripping a real personal setup
+  down to the reusable framework (see `CONTRIBUTING.md` for the
+  no-personal-data rule that keeps it that way for contributions).
+
 ## What's in here
 
 ```text
@@ -66,11 +116,15 @@ dependencies, no npm publish required:
 npx github:Kashyap-001/second-brain-template
 ```
 
-It prompts for your name, whether to keep the Odoo example skill pack, and
-whether to `git init` the result, then scaffolds a ready-to-use vault: copies
-the template, fills in `<YOUR_NAME>` / `<VAULT_ROOT>` placeholders, and turns
-the `*.example` memory/MCP files into real ones. See `bin/setup.js` for what
-it does — it's short and has no hidden steps.
+It prompts for your name, whether to keep the Odoo example skill pack,
+whether to `git init` the result, and whether to add a starter `secondbrain`
+shell alias — then scaffolds a ready-to-use vault: copies the template,
+fills in `<YOUR_NAME>` / `<VAULT_ROOT>` placeholders, and turns the
+`*.example` memory/MCP files into real ones. The shell-alias step is the
+only thing it ever touches outside the vault directory (your `~/.bashrc`,
+`~/.zshrc`, or PowerShell `$PROFILE`) — it's opt-in and idempotent (safe to
+run again). See `bin/setup.js` for what it does — it's short and has no
+hidden steps.
 
 Prefer to do it by hand, or want to understand each piece? Follow the manual
 steps below instead.

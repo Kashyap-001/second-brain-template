@@ -10,6 +10,15 @@ wiring again.
 This is a pattern to copy, not a script to run — pick names and skills that
 fit your own work, using the table below as a template.
 
+**Fastest start:** `bin/setup.js` (the `npx` scaffolder — see the root
+README) can add a single starter `secondbrain` function to your shell config
+for you (`~/.bashrc`/`~/.zshrc` on Linux/macOS, your PowerShell `$PROFILE` on
+Windows) — just answer "y" to its last prompt. It's idempotent (safe to run
+setup again, it won't duplicate the block) and it's the *only* thing the
+scaffolder touches outside the vault directory, opt-in every time. Rename
+that one function and duplicate it per mode using the table below as your
+guide.
+
 ## Example mode table
 
 | Mode name | Skills loaded | Loop | Use when |

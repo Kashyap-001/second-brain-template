@@ -26,7 +26,7 @@ jobs:
         shell: bash
         run: |
           OUT="$RUNNER_TEMP/sb-ci-out"
-          printf 'CI Test\nN\nY\n' | node bin/setup.js "$OUT"
+          printf 'CI Test\nN\nY\nN\n' | node bin/setup.js "$OUT"
           test -f "$OUT/README.md"
           test -d "$OUT/.git"
           test ! -d "$OUT/.agents/skills/examples/odoo"
@@ -38,9 +38,26 @@ jobs:
         shell: pwsh
         run: |
           $out = Join-Path $env:RUNNER_TEMP "sb-ci-out"
-          "CI Test`nN`nY" | node bin/setup.js $out
+          "CI Test`nN`nY`nN" | node bin/setup.js $out
           if (!(Test-Path "$out\README.md")) { throw "README.md missing" }
           if (!(Test-Path "$out\.git")) { throw ".git missing" }
           if (Test-Path "$out\.agents\skills\examples\odoo") { throw "odoo example pack was not removed" }
           if (!(Select-String -Path "$out\.agents\claude-memory\core.md" -Pattern "CI Test" -Quiet)) { throw "name placeholder not filled in" }
           if (!(Test-Path "$out\.mcp.json")) { throw ".mcp.json not created from example" }
+
+      # Alias installer touches files outside the scaffolded vault
+      # (~/.bashrc or PowerShell $PROFILE), so it's tested here with HOME
+      # sandboxed to a scratch dir — never the runner's real shell config.
+      - name: Test shell-alias installer + idempotency (Linux/macOS, sandboxed HOME)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          export HOME="$RUNNER_TEMP/sb-fake-home"
+          mkdir -p "$HOME"
+          printf 'CI Test\nN\nN\nY\n' | node bin/setup.js "$RUNNER_TEMP/sb-alias-out-1"
+          test -f "$HOME/.bashrc"
+          grep -q "ai-second-brain-template: secondbrain mode alias" "$HOME/.bashrc"
+          # second run must not duplicate the block
+          printf 'CI Test\nN\nN\nY\n' | node bin/setup.js "$RUNNER_TEMP/sb-alias-out-2"
+          count=$(grep -c "ai-second-brain-template: secondbrain mode alias" "$HOME/.bashrc")
+          test "$count" -eq 2  # one block = one start marker + one end marker

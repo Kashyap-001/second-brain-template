@@ -4,9 +4,12 @@
 // with no install step.
 
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const readline = require('readline');
 const { execFileSync } = require('child_process');
+
+const ALIAS_MARKER = 'ai-second-brain-template: secondbrain mode alias';
 
 const SOURCE_DIR = path.resolve(__dirname, '..');
 const EXCLUDE = new Set(['.git', 'node_modules', 'bin', 'package.json', 'package-lock.json']);
@@ -90,6 +93,63 @@ function promoteExamples(destDir) {
   }
 }
 
+function bashAliasSnippet(vaultPath) {
+  return `
+# --- ${ALIAS_MARKER} (auto-added) ---
+secondbrain() {
+  local vault="${vaultPath}"
+  local ctx
+  ctx="$(cat "$vault/.agents/AGENTS.md" "$vault/.agents/claude-memory/core.md" "$vault/.agents/claude-memory/tooling.md" 2>/dev/null)"
+  claude --append-system-prompt "$ctx" "$@"
+}
+# --- end ${ALIAS_MARKER} ---
+`;
+}
+
+function powershellAliasSnippet(vaultPath) {
+  const winPath = vaultPath.replace(/\//g, '\\');
+  return `
+# --- ${ALIAS_MARKER} (auto-added) ---
+function secondbrain {
+    $vault = "${winPath}"
+    $ctx = Get-Content "$vault\\.agents\\AGENTS.md", "$vault\\.agents\\claude-memory\\core.md", "$vault\\.agents\\claude-memory\\tooling.md" -Raw -ErrorAction SilentlyContinue -join "\`n"
+    claude --append-system-prompt $ctx @args
+}
+# --- end ${ALIAS_MARKER} ---
+`;
+}
+
+function resolvePowerShellProfile() {
+  for (const bin of ['pwsh', 'powershell']) {
+    try {
+      return execFileSync(bin, ['-NoProfile', '-Command', '$PROFILE'], { encoding: 'utf8' }).trim();
+    } catch {
+      // try the next binary, or fall through to the default guess below
+    }
+  }
+  return path.join(os.homedir(), 'Documents', 'PowerShell', 'Microsoft.PowerShell_profile.ps1');
+}
+
+// Appends a starter "secondbrain" mode alias/function to the user's shell
+// config (~/.bashrc, ~/.zshrc, or PowerShell $PROFILE). Idempotent — skips
+// if a previous run already added it. This is the one step setup.js takes
+// outside the scaffolded vault directory, so it's opt-in and never silent.
+function installShellAlias(vaultPath) {
+  const isWindows = process.platform === 'win32';
+  const targetFile = isWindows
+    ? resolvePowerShellProfile()
+    : path.join(os.homedir(), /zsh/i.test(process.env.SHELL || '') ? '.zshrc' : '.bashrc');
+  const snippet = isWindows ? powershellAliasSnippet(vaultPath) : bashAliasSnippet(vaultPath);
+
+  const existing = fs.existsSync(targetFile) ? fs.readFileSync(targetFile, 'utf8') : '';
+  if (existing.includes(ALIAS_MARKER)) {
+    return { targetFile, status: 'already-present' };
+  }
+  fs.mkdirSync(path.dirname(targetFile), { recursive: true });
+  fs.appendFileSync(targetFile, snippet, 'utf8');
+  return { targetFile, status: 'added' };
+}
+
 async function main() {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   const ask = makePrompter(rl);
@@ -112,6 +172,10 @@ async function main() {
   const name = await ask('Your name (for memory files / LICENSE)', '<YOUR_NAME>');
   const includeOdoo = await ask('Keep the Odoo example skill pack? (y/N)', 'N');
   const doGitInit = await ask('Run git init + first commit here? (Y/n)', 'Y');
+  const addAlias = await ask(
+    'Add a starter "secondbrain" shell alias to your shell config now? (y/N)',
+    'N'
+  );
   rl.close();
 
   console.log(`\nCopying template into ${targetDir} ...`);
@@ -145,13 +209,30 @@ async function main() {
     }
   }
 
+  let aliasNote = `  2. Read docs/alias-modes.md and set up shell aliases (or a PowerShell
+     function on Windows) for the modes you want.`;
+  if (/^y/i.test(addAlias)) {
+    try {
+      const { targetFile, status } = installShellAlias(targetDir);
+      aliasNote =
+        status === 'added'
+          ? `  2. Added a "secondbrain" alias to ${targetFile} — restart your shell
+     (or \`source ${targetFile}\` / reopen PowerShell) then run \`secondbrain\`.
+     Add more modes by copying/editing that function — see docs/alias-modes.md.`
+          : `  2. ${targetFile} already has a secondbrain alias from a previous run —
+     left it alone. See docs/alias-modes.md to add more modes.`;
+    } catch (err) {
+      aliasNote = `  2. Couldn't auto-add a shell alias (${err.message}) — see
+     docs/alias-modes.md to set one up by hand.`;
+    }
+  }
+
   console.log(`
 Done. Your vault is at: ${targetDir}
 
 Next steps:
   1. Review .agents/claude-memory/*.md — fill in your real preferences.
-  2. Read docs/alias-modes.md and set up shell aliases (or a PowerShell
-     function on Windows) for the modes you want.
+${aliasNote}
   3. Optional: install graphify if you want codebase knowledge-graph
      queries, then fill in .mcp.json with real paths.
   4. Run .agents/scripts/link-brain.sh (bash/zsh) from inside any project
