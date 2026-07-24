@@ -14,16 +14,28 @@ Global agent rules · SAFe-style dev-loop agents · reusable skills · persisten
 
 ---
 
-This repo is meant to be **adopted, not run as-is** — it's just structure and
-prompts, no server, no build step. Clone it, run one setup command, and you
-have a working, personal "second brain" for Claude Code (or Cursor, or any
-other agent that reads `AGENTS.md`/`CLAUDE.md`): global behavior rules, a
-self-healing dev loop, reusable skills, and memory that survives between
-sessions instead of getting re-explained every time.
+I built this because I was sick of re-explaining the same fixes to my coding
+agent every single session. This repo is my second brain — it's meant to be
+**adopted, not run as-is**, just structure and prompts, no server, no build
+step. Clone it, run one setup command, and you get a working setup for
+Claude Code (or Cursor, or any other agent that reads
+`AGENTS.md`/`CLAUDE.md`): global behavior rules, a self-healing dev loop,
+reusable skills, and memory that actually survives between sessions instead
+of getting re-explained every time.
+
+**The main thing it does: it learns from its own mistakes and gets better
+every session.** Whenever the agent hits an error, fixes a bug, or I correct
+it on something, that gets written straight into memory automatically — I
+don't have to ask it to remember. So the first project you run through this
+is the rough one. By the tenth project, it's already stopped repeating half
+the mistakes it made early on, because it's reading its own history back
+before it touches code. The more projects you complete with it, the sharper
+it gets — it's not a static prompt, it's a system that compounds.
 
 ## Contents
 
 - [Features](#features)
+- [Day-to-day usage](#day-to-day-usage)
 - [What's in here](#whats-in-here)
 - [Quick setup](#quick-setup-recommended)
 - [Manual setup](#how-to-adopt-this-manual)
@@ -40,12 +52,39 @@ sessions instead of getting re-explained every time.
 | 🛠️ **SAFe-style dev-loop agents** | `.claude/agents/` + `.claude/commands/` — `be-developer`, `qas` (independent AC/DoD gate), `rte` (PR/CI/merge), `system-architect`, wired to `/start-work`, `/quick-fix`, `/pre-pr`, `/end-work`, `/retro`, `/search-pattern`. |
 | 🧩 **Reusable skill library** | `.agents/skills/` — brain-sync, vault-pruner, safe-workflow, security-audit, testing-patterns, systematic-debugging, obsidian-vault, spec-creation, session-wrap, git-advanced, frontend-design, feature-guardian, feature-restorer, find-skills. All domain-agnostic. |
 | 📦 **Optional domain example pack** | `.agents/skills/examples/odoo/` — a full worked example of a domain-specific skill pack (Odoo 18/19). Delete it, or use it as the template for your own domain. |
-| 🧠 **Persistent cross-session memory** | `.agents/claude-memory/*.example` — frontmatter-tagged files loaded into agent context every session, so preferences and project notes survive between sessions. |
+| 🧠 **Persistent cross-session memory that compounds** | `.agents/claude-memory/*.example` — frontmatter-tagged files loaded into agent context every session. Every mistake, fix, and correction gets written here automatically as you work (no manual "save" step needed), so the agent gets measurably better the more projects you run through it — it's reading its own accumulated history, not starting fresh each time. |
 | ⚡ **Alias "mode" system** | `docs/alias-modes.md` — wire a short shell command (`devmode`, `speedmode`, …) to a fixed skill loadout + loop cadence. Examples for bash/zsh and PowerShell; `bin/setup.js` can install a starter one for you, with verified support for how `claude` and `agy` (Antigravity) each actually load context — not just a binary-name swap. |
 | 🚀 **Cross-platform `npx` setup** | `bin/setup.js` — one command scaffolds a ready-to-use vault: fills in placeholders, promotes `*.example` files, offers to drop the Odoo pack, `git init`, and add a shell alias. Zero dependencies, identical on Linux/macOS/Windows. |
 | 🕸️ **Optional graphify integration** | `.claude/skills/graphify/` — codebase knowledge-graph queries instead of raw grepping, if you install graphify separately. |
 | ✅ **CI smoke tests** | `.github/workflows/test-setup.yml` — every push/PR runs the setup script on Linux, macOS, and Windows and asserts the output is correct, including the shell-alias installer against a sandboxed `HOME`. |
 | 🔒 **Sanitized & MIT-licensed** | Built by stripping a real personal setup down to the reusable framework — see [`CONTRIBUTING.md`](CONTRIBUTING.md) for the no-personal-data rule that keeps it that way. |
+
+## Day-to-day usage
+
+This is the loop I actually run, once it's set up:
+
+1. **`/start-work [description]`** — kicks off a task. It gates on Acceptance
+   Criteria / Definition of Done first (it won't let the agent start coding
+   without them — it'll stop and ask you instead of guessing), writes a task
+   note into the vault, and cuts a feature branch.
+2. **Just do the work.** This is the part I don't have to think about: while
+   the agent codes, hits errors, fixes them, or I correct something, the
+   `AGENTS.md` "Universal Learn-and-Save Rule" + the Phase 5 self-healing
+   loop write that straight into the right memory file automatically —
+   `Odoo-Mistakes.md`, `General-Mistakes.md`, `feedback_*.md`, whatever fits.
+   **I don't need a separate "save what you learned" step, the loop already
+   does it.** If I want to force it, I can still say "remember this" or run
+   `brain-sync`, but for normal work it happens on its own.
+3. **`/end-work`** — commit checklist, vault task note gets updated, and it
+   writes a handoff so the next session (or the next agent, if I'm switching
+   between Claude and Cursor/agy) picks up exactly where I left off instead
+   of starting cold.
+
+Other commands for when the happy path doesn't fit: `/quick-fix` for small
+isolated bugs that don't need the full gate, `/pre-pr` to run full
+validation before opening a PR, `/retro` to pull learnings out of a finished
+session, `/search-pattern` to grep the codebase for a pattern instead of
+doing it by hand.
 
 ## What's in here
 
