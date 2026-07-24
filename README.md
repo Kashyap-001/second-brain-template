@@ -206,7 +206,7 @@ docs/
 └── alias-modes.md           Pattern for wiring shell aliases (bash/zsh/PowerShell)
                              to fixed skill+loop combos ("modes")
 
-bin/setup.js, package.json    npx setup CLI — see "Quick setup" below
+bin/setup.js, package.json    npx setup CLI — see "Quick setup" above
 .mcp.json.example             MCP server config template (graphify)
 ```
 
