@@ -148,6 +148,20 @@ This is the loop I actually run, once it's set up:
    between Claude and Cursor/agy) picks up exactly where I left off instead
    of starting cold.
 
+**What actually lands in memory** — a trimmed, made-up-but-representative
+entry, same shape as the real ones in `General-Mistakes.md`:
+
+```markdown
+### [API-Change] Retry wrapper swallowed the original exception
+- Avoid: catching `Exception` in a retry decorator and re-raising a generic `RuntimeError`.
+- What happens: the real error (a `KeyError` from a missing config value) gets lost — every
+  retry failure looks identical in the logs, so debugging starts from zero each time.
+- Fix: re-raise with `raise RuntimeError(...) from err`, or don't catch what you don't handle.
+```
+
+Next time the agent touches a retry wrapper, it reads this first instead of writing the
+same bug again — that's the whole mechanism behind "gets better every project."
+
 Other commands for when the happy path doesn't fit: `/quick-fix` for small
 isolated bugs that don't need the full gate, `/pre-pr` to run full
 validation before opening a PR, `/retro` to pull learnings out of a finished
