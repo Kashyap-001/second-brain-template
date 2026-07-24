@@ -35,11 +35,11 @@ it gets — it's not a static prompt, it's a system that compounds.
 ## Contents
 
 - [Features](#features)
-- [Day-to-day usage](#day-to-day-usage)
-- [What's in here](#whats-in-here)
 - [Quick setup](#quick-setup-recommended)
 - [Manual setup](#how-to-adopt-this-manual)
 - [Platform notes](#platform-notes)
+- [Day-to-day usage](#day-to-day-usage)
+- [What's in here](#whats-in-here)
 - [Contributing](#contributing)
 - [Architecture](#architecture)
 - [License](#license)
@@ -58,6 +58,74 @@ it gets — it's not a static prompt, it's a system that compounds.
 | 🕸️ **Optional graphify integration** | `.claude/skills/graphify/` — codebase knowledge-graph queries instead of raw grepping, if you install graphify separately. |
 | ✅ **CI smoke tests** | `.github/workflows/test-setup.yml` — every push/PR runs the setup script on Linux, macOS, and Windows and asserts the output is correct, including the shell-alias installer against a sandboxed `HOME`. |
 | 🔒 **Sanitized & MIT-licensed** | Built by stripping a real personal setup down to the reusable framework — see [`CONTRIBUTING.md`](CONTRIBUTING.md) for the no-personal-data rule that keeps it that way. |
+
+## Quick setup (recommended)
+
+Works the same on Linux, macOS, and Windows — it's a pure Node script, no
+dependencies, no npm publish required:
+
+```bash
+npx github:Kashyap-001/second-brain-template
+```
+
+It prompts for your name, whether to keep the Odoo example skill pack,
+whether to `git init` the result, and whether to add a starter `secondbrain`
+shell alias — then scaffolds a ready-to-use vault: copies the template,
+fills in `<YOUR_NAME>` / `<VAULT_ROOT>` placeholders, and turns the
+`*.example` memory/MCP files into real ones.
+
+> The shell-alias step is the only thing it ever touches outside the vault
+> directory (your `~/.bashrc`, `~/.zshrc`, or PowerShell `$PROFILE`) — it's
+> opt-in and idempotent, safe to run again. See `bin/setup.js` for exactly
+> what it does; it's short and has no hidden steps.
+
+Prefer to do it by hand, or want to understand each piece? Follow the manual
+steps below instead.
+
+## How to adopt this (manual)
+
+1. **Clone this repo** as your own vault (Obsidian or plain folder — nothing
+   here is Obsidian-specific except that markdown renders nicely in it).
+2. **Rename placeholders.** Search for `<VAULT_ROOT>`, `<YOUR_NAME>`,
+   `<ODOO_CORE_PATH>`, and similar bracketed placeholders and replace them
+   with your real values (or leave `<VAULT_ROOT>` as a literal env var —
+   `link-brain.sh` resolves it from its own location by default, or from a
+   `VAULT_ROOT` env var if you set one).
+3. **Set up memory:** `cd .agents/claude-memory && cp core.md.example core.md`
+   (and the other two `.example` files) — fill them in with your own profile
+   and preferences.
+4. **Decide on the Odoo example pack:** if you don't do Odoo work, delete
+   `.agents/skills/examples/odoo/`. If you do, it's ready to use, or use it as
+   a reference for building your own domain skill pack under
+   `.agents/skills/<your-domain>/`.
+5. **Install [graphify](https://github.com)** separately if you want codebase
+   knowledge-graph queries (`graphify query "..."`, `graphify path "A" "B"`).
+   It's optional — `.claude/settings.json`'s hooks and `.agents/AGENTS.md`'s
+   graphify section only matter if it's on your `PATH`. Without it, ignore or
+   remove those hooks.
+6. **Set up `.mcp.json`** from `.mcp.json.example` if you're using the
+   graphify MCP server: copy it, fill in the real paths, and Claude Code will
+   pick it up on next session start (one-time approval prompt).
+7. **Wire a project to this vault:** from inside any project directory, run
+   `.agents/scripts/link-brain.sh .` (pointing `VAULT_ROOT` at this repo if
+   it's not adjacent). This symlinks `.agents/`, `.claude/commands/`,
+   `.claude/agents/` into the project and generates a `CLAUDE.md` /
+   `.cursorrules` pointing back here. It's a bash script — on Windows, run it
+   under WSL or Git Bash (everything else in this repo, including the
+   `npx` setup above, is platform-agnostic).
+8. **Set up shell shortcuts for common modes** (e.g. "domain dev with
+   teaching mode on" vs. "fast speed-dev" vs. "general brainstorming") — see
+   [`docs/alias-modes.md`](docs/alias-modes.md) for the pattern, with
+   examples for bash/zsh and PowerShell.
+
+## Platform notes
+
+| Piece | Linux | macOS | Windows |
+|---|:---:|:---:|:---:|
+| `npx github:Kashyap-001/second-brain-template` setup | ✅ | ✅ | ✅ (needs Node + git) |
+| `.agents/scripts/link-brain.sh` | ✅ | ✅ | via WSL or Git Bash |
+| Alias/mode shortcuts | bash/zsh function | bash/zsh function | PowerShell function |
+| Skills, agent rules, docs | ✅ plain markdown — no platform dependency | ✅ | ✅ |
 
 ## Day-to-day usage
 
@@ -127,74 +195,6 @@ docs/
 bin/setup.js, package.json    npx setup CLI — see "Quick setup" below
 .mcp.json.example             MCP server config template (graphify)
 ```
-
-## Quick setup (recommended)
-
-Works the same on Linux, macOS, and Windows — it's a pure Node script, no
-dependencies, no npm publish required:
-
-```bash
-npx github:Kashyap-001/second-brain-template
-```
-
-It prompts for your name, whether to keep the Odoo example skill pack,
-whether to `git init` the result, and whether to add a starter `secondbrain`
-shell alias — then scaffolds a ready-to-use vault: copies the template,
-fills in `<YOUR_NAME>` / `<VAULT_ROOT>` placeholders, and turns the
-`*.example` memory/MCP files into real ones.
-
-> The shell-alias step is the only thing it ever touches outside the vault
-> directory (your `~/.bashrc`, `~/.zshrc`, or PowerShell `$PROFILE`) — it's
-> opt-in and idempotent, safe to run again. See `bin/setup.js` for exactly
-> what it does; it's short and has no hidden steps.
-
-Prefer to do it by hand, or want to understand each piece? Follow the manual
-steps below instead.
-
-## How to adopt this (manual)
-
-1. **Clone this repo** as your own vault (Obsidian or plain folder — nothing
-   here is Obsidian-specific except that markdown renders nicely in it).
-2. **Rename placeholders.** Search for `<VAULT_ROOT>`, `<YOUR_NAME>`,
-   `<ODOO_CORE_PATH>`, and similar bracketed placeholders and replace them
-   with your real values (or leave `<VAULT_ROOT>` as a literal env var —
-   `link-brain.sh` resolves it from its own location by default, or from a
-   `VAULT_ROOT` env var if you set one).
-3. **Set up memory:** `cd .agents/claude-memory && cp core.md.example core.md`
-   (and the other two `.example` files) — fill them in with your own profile
-   and preferences.
-4. **Decide on the Odoo example pack:** if you don't do Odoo work, delete
-   `.agents/skills/examples/odoo/`. If you do, it's ready to use, or use it as
-   a reference for building your own domain skill pack under
-   `.agents/skills/<your-domain>/`.
-5. **Install [graphify](https://github.com)** separately if you want codebase
-   knowledge-graph queries (`graphify query "..."`, `graphify path "A" "B"`).
-   It's optional — `.claude/settings.json`'s hooks and `.agents/AGENTS.md`'s
-   graphify section only matter if it's on your `PATH`. Without it, ignore or
-   remove those hooks.
-6. **Set up `.mcp.json`** from `.mcp.json.example` if you're using the
-   graphify MCP server: copy it, fill in the real paths, and Claude Code will
-   pick it up on next session start (one-time approval prompt).
-7. **Wire a project to this vault:** from inside any project directory, run
-   `.agents/scripts/link-brain.sh .` (pointing `VAULT_ROOT` at this repo if
-   it's not adjacent). This symlinks `.agents/`, `.claude/commands/`,
-   `.claude/agents/` into the project and generates a `CLAUDE.md` /
-   `.cursorrules` pointing back here. It's a bash script — on Windows, run it
-   under WSL or Git Bash (everything else in this repo, including the
-   `npx` setup above, is platform-agnostic).
-8. **Set up shell shortcuts for common modes** (e.g. "domain dev with
-   teaching mode on" vs. "fast speed-dev" vs. "general brainstorming") — see
-   [`docs/alias-modes.md`](docs/alias-modes.md) for the pattern, with
-   examples for bash/zsh and PowerShell.
-
-## Platform notes
-
-| Piece | Linux | macOS | Windows |
-|---|:---:|:---:|:---:|
-| `npx github:Kashyap-001/second-brain-template` setup | ✅ | ✅ | ✅ (needs Node + git) |
-| `.agents/scripts/link-brain.sh` | ✅ | ✅ | via WSL or Git Bash |
-| Alias/mode shortcuts | bash/zsh function | bash/zsh function | PowerShell function |
-| Skills, agent rules, docs | ✅ plain markdown — no platform dependency | ✅ | ✅ |
 
 ## Contributing
 
